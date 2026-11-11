@@ -1,0 +1,21 @@
+# Виртуальное окружение Python
+venv/
+env/
+.venv/
+venv
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Файлы настроек IDE (VS Code, PyCharm)
+.vscode/
+.idea/
+
+# Системные файлы (Windows, macOS)
+Thumbs.db
+.DS_Store
+
+# Файлы с секретами (если добавите их позже)
+.env
