@@ -23,6 +23,9 @@ class ReportsTab(QWidget):
         self.report_combo.addItem("Группировка по образованию", "education")
         self.report_combo.addItem("Группировка по специальности", "specialty")
         self.report_combo.addItem("Группировка по стажу", "experience")
+        self.report_combo.addItem("Нанятые — по предприятиям", "hired_enterprise")
+        self.report_combo.addItem("Нанятые — по специальностям", "hired_specialty")
+        self.report_combo.addItem("Нанятые — по месяцам", "hired_month")
         
         control_layout.addWidget(self.report_combo)
         

@@ -22,6 +22,8 @@ class CandidatesMatchingTab(QWidget):
         
         self.btn_match = QPushButton("Найти кандидатов")
         control_layout.addWidget(self.btn_match)
+        self.btn_hire = QPushButton("Нанять выбранного")
+        control_layout.addWidget(self.btn_hire)
         control_layout.addStretch()
         
         layout.addLayout(control_layout)
@@ -39,7 +41,9 @@ class CandidatesMatchingTab(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
         layout.addWidget(self.table)
 
+
         self.btn_match.clicked.connect(self.find_candidates)
+        self.btn_hire.clicked.connect(self.hire_selected)
 
     def load_vacancies(self):
         current_id = self.vacancy_combo.currentData()
@@ -65,6 +69,7 @@ class CandidatesMatchingTab(QWidget):
             
             item_score = QTableWidgetItem(f"{score}%")
             item_score.setTextAlignment(Qt.AlignCenter)
+            item_score.setData(Qt.UserRole, u_id)
             if score >= 80:
                 item_score.setBackground(Qt.green)
             elif score >= 60:
@@ -75,6 +80,31 @@ class CandidatesMatchingTab(QWidget):
             self.table.setItem(row_idx, 2, QTableWidgetItem(exp))
             self.table.setItem(row_idx, 3, QTableWidgetItem(sal))
             self.table.setItem(row_idx, 4, QTableWidgetItem(contacts))
+
+    def hire_selected(self):
+        row = self.table.currentRow()
+        v_id = self.vacancy_combo.currentData()
+        if row == -1 or v_id is None:
+            QMessageBox.information(self, "Внимание", "Выберите кандидата в таблице.")
+            return
+
+        u_id = self.table.item(row, 0).data(Qt.UserRole)
+        name = self.table.item(row, 1).text()
+
+        reply = QMessageBox.question(
+            self, "Подтверждение",
+            f"Нанять '{name}' на вакансию:\n{self.vacancy_combo.currentText()}?",
+            QMessageBox.Yes | QMessageBox.No)
+
+        if reply == QMessageBox.Yes:
+            try:
+                self.db.hire(u_id, v_id)
+                self.table.setRowCount(0)
+                self.load_vacancies()
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка БД", str(e))
+
+
 
     def showEvent(self, event):
         super().showEvent(event)

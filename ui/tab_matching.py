@@ -42,7 +42,11 @@ class MatchingTab(QWidget):
 
         self.btn_match.clicked.connect(self.find_matches)
 
-    # ВАЖНО: Этот метод должен быть на уровне класса (без лишних отступов!)
+        self.btn_hire = QPushButton("Нанять на выбранную вакансию")
+        control_layout.addWidget(self.btn_hire)
+        self.btn_hire.clicked.connect(self.hire_selected)
+
+
     def load_users(self):
         # Запоминаем, кто был выбран, чтобы не сбрасывать выбор при обновлении
         current_id = self.user_combo.currentData()
@@ -78,6 +82,7 @@ class MatchingTab(QWidget):
             
             item_score = QTableWidgetItem(f"{score}%")
             item_score.setTextAlignment(Qt.AlignCenter)
+            item_score.setData(Qt.UserRole, v_id)
             # Красим высокий балл в зеленый
             if score >= 80:
                 item_score.setBackground(Qt.green)
@@ -89,6 +94,29 @@ class MatchingTab(QWidget):
             self.table.setItem(row_idx, 2, QTableWidgetItem(title))
             self.table.setItem(row_idx, 3, QTableWidgetItem(salary))
             self.table.setItem(row_idx, 4, QTableWidgetItem(desc))
+
+    def hire_selected(self):
+        row = self.table.currentRow()
+        u_id = self.user_combo.currentData()
+        if row == -1 or u_id is None:
+            QMessageBox.information(self, "Внимание", "Выберите вакансию в таблице.")
+            return
+        v_id = self.table.item(row, 0).data(Qt.UserRole)
+        ent = self.table.item(row, 1).text()
+        title = self.table.item(row, 2).text()
+        name = self.user_combo.currentText()
+
+        reply = QMessageBox.question(self, "Подтверждение",
+                                    f"Нанять '{name}' на вакансию '{title}' ({ent})?",
+                                    QMessageBox.Yes | QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            try:
+                self.db.hire(u_id, v_id)
+                self.table.setRowCount(0)
+                self.load_users()
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка БД", str(e))
+
 
     # Этот метод срабатывает автоматически каждый раз, когда вкладка становится видимой
     def showEvent(self, event):

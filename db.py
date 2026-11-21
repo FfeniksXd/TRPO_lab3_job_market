@@ -156,13 +156,15 @@ class Database:
         self.execute_dml("DELETE FROM unemployed WHERE id = %s", (u_id,))
 
         # --- МЕТОДЫ ДЛЯ ВАКАНСИЙ ---
-    def get_vacancies(self):
-        query = """
+    def get_vacancies(self, active=None):
+        where = "" if active is None else f"WHERE v.is_active = {'TRUE' if active else 'FALSE'}"
+        query = f"""
             SELECT v.id, e.name as enterprise, s.name as specialty, v.title, 
                    v.salary_min, v.salary_max, v.is_active
             FROM vacancies v
             JOIN enterprises e ON v.enterprise_id = e.id
             JOIN specialties s ON v.specialty_id = s.id
+            {where}
             ORDER BY e.name, s.name
         """
         return self.execute_query(query)
@@ -231,6 +233,40 @@ class Database:
     def delete_vacancy(self, v_id):
         self.execute_dml("DELETE FROM vacancies WHERE id = %s", (v_id,))
 
+
+
+
+        # --- НАЙМ ---
+    def hire(self, u_id, v_id):
+        """Нанимает человека и закрывает вакансию (одна транзакция)"""
+        with psycopg2.connect(**self.conn_params) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO hirings (unemployed_id, vacancy_id) VALUES (%s, %s)",
+                    (u_id, v_id))
+                cursor.execute("UPDATE vacancies SET is_active = FALSE WHERE id = %s", (v_id,))
+
+    def cancel_hire(self, hiring_id):
+        """Отменяет найм и снова открывает вакансию"""
+        with psycopg2.connect(**self.conn_params) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("DELETE FROM hirings WHERE id = %s RETURNING vacancy_id", (hiring_id,))
+                row = cursor.fetchone()
+                if row:
+                    cursor.execute("UPDATE vacancies SET is_active = TRUE WHERE id = %s", (row[0],))
+
+    def get_hired(self):
+        return self.execute_query("""
+            SELECT h.id, u.full_name, e.name, COALESCE(v.title, s.name), h.hired_at
+            FROM hirings h
+            JOIN unemployed u ON u.id = h.unemployed_id
+            JOIN vacancies v ON v.id = h.vacancy_id
+            JOIN enterprises e ON e.id = v.enterprise_id
+            JOIN specialties s ON s.id = v.specialty_id
+            ORDER BY h.hired_at DESC, u.full_name
+        """)
+
+    
         # --- МЕТОД ДЛЯ ОТЧЕТОВ ---
     def get_report_data(self, report_type):
         """Возвращает заголовки и данные для выбранного отчета"""
@@ -303,7 +339,35 @@ class Database:
                 ORDER BY count DESC
             """
             headers = ["Стаж работы", "Количество человек"]
-            
+
+        elif report_type == "hired_enterprise":
+            query = """
+                SELECT e.name, COUNT(h.id) AS count
+                FROM hirings h
+                JOIN vacancies v ON v.id = h.vacancy_id
+                JOIN enterprises e ON e.id = v.enterprise_id
+                GROUP BY e.name ORDER BY count DESC, e.name
+            """
+            headers = ["Предприятие", "Принято человек"]
+
+        elif report_type == "hired_specialty":
+            query = """
+                SELECT s.name, COUNT(h.id) AS count
+                FROM hirings h
+                JOIN vacancies v ON v.id = h.vacancy_id
+                JOIN specialties s ON s.id = v.specialty_id
+                GROUP BY s.name ORDER BY count DESC, s.name
+            """
+            headers = ["Специальность", "Принято человек"]
+
+        elif report_type == "hired_month":
+            query = """
+                SELECT TO_CHAR(hired_at, 'YYYY-MM') AS month, COUNT(*) AS count
+                FROM hirings
+                GROUP BY month ORDER BY month DESC
+            """
+            headers = ["Месяц", "Принято человек"]
+
         else:
             return [], []
 
@@ -313,7 +377,9 @@ class Database:
         # --- МЕТОДЫ ДЛЯ ПОДБОРА ---
     def get_unemployed_list(self):
         """Список безработных для выпадающего списка (ID + ФИО)"""
-        return self.execute_query("SELECT id, full_name FROM unemployed ORDER BY full_name")
+        return self.execute_query(
+        "SELECT id, full_name FROM unemployed "
+        "WHERE id NOT IN (SELECT unemployed_id FROM hirings) ORDER BY full_name")
 
     def get_matching_vacancies(self, u_id):
         """Возвращает список подходящих вакансий с рассчитанным баллом соответствия"""
@@ -343,6 +409,7 @@ class Database:
             LEFT JOIN education_levels ue ON u.education_level_id = ue.id
             WHERE v.is_active = TRUE 
               AND v.specialty_id = u.specialty_id
+              AND NOT EXISTS (SELECT 1 FROM hirings h WHERE h.unemployed_id = u.id)
               AND (ve.rank IS NULL OR ue.rank >= ve.rank)
               AND NOT EXISTS (
                   SELECT 1 FROM vacancy_skills vs
@@ -447,6 +514,7 @@ class Database:
             LEFT JOIN education_levels ue ON u.education_level_id = ue.id
             LEFT JOIN education_levels ve ON v.education_level_id = ve.id
             WHERE v.specialty_id = u.specialty_id
+              AND NOT EXISTS (SELECT 1 FROM hirings h WHERE h.unemployed_id = u.id)
               AND (ve.rank IS NULL OR ue.rank >= ve.rank)
               AND NOT EXISTS (
                   SELECT 1 FROM vacancy_skills vs

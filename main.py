@@ -8,6 +8,7 @@ from ui.tab_unemployed import UnemployedTab
 from ui.tab_reports import ReportsTab
 from ui.tab_matching import MatchingTab
 from ui.tab_candidates_matching import CandidatesMatchingTab
+from ui.tab_hired import HiredTab
 
 
 class MainWindow(QMainWindow):
@@ -33,7 +34,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(SpecialtiesTab(self.db), "Специальности")
         self.tabs.addTab(MatchingTab(self.db), "Подбор вакансий")
         self.tabs.addTab(CandidatesMatchingTab(self.db), "Подбор кандидатов")
-
+        self.tabs.addTab(HiredTab(self.db), "Принятые сотрудники") 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()

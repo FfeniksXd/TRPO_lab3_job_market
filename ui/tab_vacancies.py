@@ -248,6 +248,11 @@ class VacanciesTab(QWidget):
         btn_layout.addWidget(self.btn_add)
         btn_layout.addWidget(self.btn_edit)
         btn_layout.addWidget(self.btn_delete)
+        self.filter_combo = QComboBox()
+        self.filter_combo.addItem("Все вакансии", None)
+        self.filter_combo.addItem("Только активные", True)
+        self.filter_combo.addItem("Только закрытые", False)
+        btn_layout.addWidget(self.filter_combo)
         btn_layout.addStretch()
         btn_layout.addWidget(self.btn_refresh)
         layout.addLayout(btn_layout)
@@ -267,9 +272,10 @@ class VacanciesTab(QWidget):
         self.btn_edit.clicked.connect(self.edit_record)
         self.btn_delete.clicked.connect(self.delete_record)
         self.btn_refresh.clicked.connect(self.load_data)
+        self.filter_combo.currentIndexChanged.connect(self.load_data)
 
     def load_data(self):
-        data = self.db.get_vacancies()
+        data = self.db.get_vacancies(self.filter_combo.currentData())
         self.table.setRowCount(len(data))
         for row_idx, row_data in enumerate(data):
             self.table.setItem(row_idx, 0, QTableWidgetItem(str(row_data[0])))
@@ -279,6 +285,11 @@ class VacanciesTab(QWidget):
             self.table.setItem(row_idx, 4, QTableWidgetItem(str(row_data[4]) if row_data[4] is not None else ""))
             self.table.setItem(row_idx, 5, QTableWidgetItem(str(row_data[5]) if row_data[5] is not None else ""))
             self.table.setItem(row_idx, 6, QTableWidgetItem("Да" if row_data[6] else "Нет"))
+
+            # Закрытые вакансии красим в серый
+            if not row_data[6]:
+                for col in range(7):
+                    self.table.item(row_idx, col).setBackground(Qt.lightGray)
 
     def add_record(self):
         dialog = VacancyDialog(self.db, self)

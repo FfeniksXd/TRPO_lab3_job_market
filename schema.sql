@@ -101,6 +101,13 @@ CREATE TABLE vacancy_skills (
     PRIMARY KEY (vacancy_id, skill_id)
 );
 
+CREATE TABLE hirings (
+    id            SERIAL PRIMARY KEY,
+    unemployed_id INT NOT NULL UNIQUE REFERENCES unemployed(id) ON DELETE CASCADE,
+    vacancy_id    INT NOT NULL UNIQUE REFERENCES vacancies(id) ON DELETE CASCADE,
+    hired_at      DATE NOT NULL DEFAULT CURRENT_DATE
+);
+
 -- 6. ИНДЕКСЫ
 CREATE INDEX idx_unemployed_specialty ON unemployed(specialty_id);
 CREATE INDEX idx_unemployed_education ON unemployed(education_level_id);
