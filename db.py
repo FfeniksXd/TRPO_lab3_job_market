@@ -427,9 +427,9 @@ class Database:
             score = 50 # Базовый балл за прохождение жестких фильтров
             
             # Стаж (макс +20)
-            if min_exp and u_exp >= min_exp:
+            if not min_exp or u_exp >= min_exp:
                 score += 20
-            elif min_exp and min_exp > 0:
+            elif min_exp > 0:
                 score += int((u_exp / min_exp) * 20) # Частичный балл, если стажа чуть меньше
                 
             # Возраст (макс +10)
